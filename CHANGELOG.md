@@ -1,3 +1,81 @@
+# 1.1.1 - July 2 2026
+
+* ***(FIX)*** EXIF-oriented images no longer double-rotate in EXIF-honoring
+  browsers (e.g. Safari rendering WebP; Chrome ignores the EXIF chunk in WebP,
+  which is why it appeared correct there). The `rotate` step bakes the EXIF
+  orientation into the pixels, but kept metadata still carried the original
+  `Orientation` tag, so browsers honoring it rotated the image a second time.
+  The outgoing tag is now neutralized (`Orientation: 1`) whenever orientation
+  compensation occurs. Optimized originals are intentionally unchanged (no
+  rotate step; their EXIF remains authoritative), so existing optimized caches
+  stay valid. ETags of processed EXIF-oriented images change accordingly
+  (win32 snapshot refreshed; Linux snapshot needs the usual CI-artifact
+  refresh). Regression coverage in `test/image-orientation.tests.ts` using the
+  new `test/files/angel.jpg` (orientation 6) fixture.
+
+
+# 1.1.0 - June 11 2026
+
+* ***(ENHANCEMENT)*** Performance overhaul of the request hot path. Measured via
+  `image-steam-bench` (same hardware, before/after): cached throughput +41%
+  (3.9k -> 5.5k rps), 95%-cache-hit workloads +32%, with hot-path latency p50
+  dropping from ~2ms to ~1ms.
+* ***(ENHANCEMENT)*** New opt-in **in-memory artifact cache**: `storage.memCache`
+  (`{ maxSize, tts }`, default 100MB / 30s time-to-stale, LRU eviction). Serves
+  hot processed artifacts without any storage round-trip; cleared on cache
+  deletes. Disabled by default.
+* ***(ENHANCEMENT)*** New workspace package `image-steam-awss3` v2.0.0 (migrated
+  from the now-archived `image-steam-aws-s3` repo): rewritten in TypeScript/ESM
+  on `@aws-sdk/client-s3` v3 (deprecated `aws-sdk` v2 removed), zero-copy fetch
+  buffers, new `endpoint`/`forcePathStyle`/`clientOptions`/`client` options, and
+  unit tests. Fixes a v1 bug where `deleteCache` applied `pathPrefix` twice so
+  cache deletes never matched when a prefix was configured. Object key layout is
+  unchanged.
+* ***(FIX)*** `x-track-origin-referer` header no longer leaks into shared default
+  storage options (previously persisted for all subsequent requests once seen).
+* ***(FIX)*** `processor.sharp.simd` option no longer incorrectly calls
+  `sharp.concurrency()`; sharp >=0.29 always uses SIMD so the option is now a
+  documented no-op.
+* ***(CLEANUP)*** sharp `^0.35.0`; refreshed win32 ETag snapshot accordingly.
+
+
+# 1.0.0 - June 10 2026
+
+* ***(BREAKING)*** Entire codebase converted from CommonJS JavaScript to TypeScript (ESM).
+  Published artifacts are now compiled to `dist/` (`main`/`exports` updated accordingly);
+  deep requires into `lib/` are no longer supported.
+* ***(BREAKING)*** Node.js engine support updated to `>=24.0.0` (native TypeScript type
+  stripping). Tested on Node 24/26.
+* ***(ENHANCEMENT)*** First-class **Bun** support — the server, tests, and benchmark all run
+  under Bun (`npm run start:bun`, `nodemo:bun`, `bench:bun`).
+* ***(ENHANCEMENT)*** Full **Windows** support — `npm start`, `npm test`, and `npm run bench`
+  all work on Windows.
+* ***(ENHANCEMENT)*** Hashing is now a runtime-resolved helper (`lib/helpers/xxhash.ts`):
+  `Bun.hash.xxHash32` when running under Bun, otherwise `xxhash-wasm`. The legacy `xxhash`
+  native addon dependency is gone (no more node-gyp). Both paths produce identical
+  xxHash32 values with the same seed, so **cache keys are unchanged** — existing caches
+  remain valid.
+* ***(ENHANCEMENT)*** New CLI bins (`bin/isteam.js`, `bin/isteamd.js`); fixed long-standing
+  `isteamd` bug where the daemon spawn never received the bin path.
+* ***(FIX)*** `fs` storage driver now percent-encodes characters that are invalid in Windows
+  filenames (`<>:"|?*`, control chars) when running on Windows, so cache writes no longer
+  fail for paths containing e.g. `:`. Non-Windows path mapping is unchanged.
+* ***(FIX)*** Node 26 compatibility: `scripts/fix-yargs-node26.ts` (run on `prepare`) patches
+  yargs' extensionless CJS entry, which Node >=26 misclassifies as ESM (breaks `require('yargs/yargs')`
+  in c8). mocha upgraded to v11 and c8 to v11 for the same reason.
+* ***(CLEANUP)*** sharp `^0.34.5`, fresh ETag snapshots, dependencies updated; GitHub Actions
+  CI matrix runs on Node 24 and 26.
+* ***(CLEANUP)*** `image-steam-bench` workspace package converted to TypeScript/ESM (v2.0.0);
+  benchmark scores are now also written to the log file for non-interactive runs.
+
+
+# 0.65.0 - March 13 2025
+
+* ***(ENHANCEMENT)*** Node.js engine support updated to `>=18.0.0` (tested on Node 24).
+* ***(CLEANUP)*** Replaced Travis CI with GitHub Actions; CI matrix runs on Node 18, 20, 22, and 24.
+* ***(CLEANUP)*** Dependencies updated to latest within current semver ranges.
+
+
 # 0.64.2 - November 4 2022
 
 * ***(FIX)*** `sharp@0.31.2` resolves [rotation bug](https://github.com/lovell/sharp/issues/3391).
